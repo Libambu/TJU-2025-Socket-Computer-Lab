@@ -37,6 +37,31 @@ void handle_sigpipe(const int sig)
     }
     exit(0);
 }
+//http请求处理
+/*
+    request指向客户端发送的http请求的字符串
+    method GET post ……
+    path 请求路径
+    http_version
+*/
+int parse_http_request(const char *request,char *method, char *path, char *http_version){
+    const char *end_of_line = strchr(request,'\n');
+    if(end_of_line == NULL){
+        return 0;
+    }
+    char first_line[BUF_SIZE];
+    strncpy(first_line,request,end_of_line-request);
+    first_line[end_of_line-request] = '\0';
+    //开始解析
+    if(sscanf(first_line,"%s %s %s",method,path,http_version)!=3){
+        return 0;//不符合规范方法
+    }
+    //strcmp相等返回0
+    if(strcmp(method,"GET")!=0&&strcmp(method,"POST")!=0&&strcmp(method,"HEAD")!=0){
+        return -1;//未实现方法
+    }
+    return 1;
+}
 int main(int argc, char *argv[]) {
     /* register signal handler */
     /* process termination signals */
@@ -112,15 +137,24 @@ int main(int argc, char *argv[]) {
             memset(buf, 0, BUF_SIZE);
             //读取客户端传入的数据，写入buf中
             int readret = recv(client_sock, buf, BUF_SIZE, 0);
-            if (readret <0)break;
+            if (readret <=0)break;
             fprintf(stdout,"Received (total %d bytes):%s \n",readret,buf); 
-            // 移除 buf 中的换行符
-            size_t len = strcspn(buf, "\n");
-            buf[len] = '\0';
-            strcat(buf,"(echo back)\n");
-            //向客户端echo
-            if(send(client_sock, buf, strlen(buf), 0) < 0)break;
-            fprintf(stdout,"Send back\n");
+            
+            //开始处理请求
+            char method[10],path[100],http_version[20];
+            int parse_result = parse_http_request(buf,method,path,http_version);
+            if(parse_result==1){
+                if(send(client_sock,buf,strlen(buf),0)<0){
+                    break;
+                }
+                fprintf(stdout,"Send back\n");
+            }else if(parse_result==-1){
+                char *response = "HTTP/1.1 501 Not Implemented\r\n\r\n";
+                send(client_sock,response,strlen(response),0);
+            }else if(parse_result == 0){
+                char *response = "HTTP/1.1 400 Bad request\r\n\r\n";
+                send(client_sock,response,strlen(response),0);
+            }
             /* when client is closing the connection：
                 FIN of client carrys empty，so recv() return 0
                 ACK of server only carrys"(echo back)", so send() return 11
