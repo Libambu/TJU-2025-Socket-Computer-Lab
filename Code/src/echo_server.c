@@ -10,8 +10,10 @@
 #define BUF_SIZE 4096
 
 int sock = -1, client_sock = -1;
+//sock服务器的监听套接字（监听客户端连接的套接字）。
 char buf[BUF_SIZE];
 
+//接收一个套接字描述符 sock 作为参数，尝试关闭该套接字
 int close_socket(int sock) {
     if (close(sock)) {
         fprintf(stderr, "Failed closing socket.\n");
@@ -19,6 +21,7 @@ int close_socket(int sock) {
     }
     return 0;
 }
+//信号处理函数，用于关闭套接字
 void handle_signal(const int sig) {
     if (sock != -1) {
         fprintf(stderr, "\nReceived signal %d. Closing socket.\n", sig);
@@ -26,6 +29,7 @@ void handle_signal(const int sig) {
     }
     exit(0);
 }
+//sigpipe信号处理
 void handle_sigpipe(const int sig) 
 {
     if (sock != -1) {
@@ -46,33 +50,35 @@ int main(int argc, char *argv[]) {
     signal(SIGHUP, handle_signal);
     /* normal I/O event */
     signal(SIGPIPE, handle_sigpipe);
-    socklen_t cli_size;
-    struct sockaddr_in addr, cli_addr;
+    socklen_t cli_size;//存储客户端地址结构的大小
+    struct sockaddr_in addr, cli_addr;//ipv4地址网络
     fprintf(stdout, "----- Echo Server -----\n");
 
     /* all networked programs must create a socket */
+    //创建ipv4协议 TCP协议的连接
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "Failed creating socket.\n");
         return EXIT_FAILURE;
     }
     /* set socket SO_REUSEADDR | SO_REUSEPORT */
     int opt = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR |SO_REUSEPORT, &opt, sizeof(opt))) {
         fprintf(stderr, "Failed setting socket options.\n");
         return EXIT_FAILURE;
     }
 
     addr.sin_family = AF_INET; // ipv4
-    addr.sin_port = htons(ECHO_PORT);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(ECHO_PORT);//监听端口号9999
+    addr.sin_addr.s_addr = INADDR_ANY;//将服务器的 IP 地址设置为 0.0.0.0，从而让服务器监听所有可用的网络接口
 
     /* servers bind sockets to ports---notify the OS they accept connections */
+    //socket绑定ip port 协议族
     if (bind(sock, (struct sockaddr *) &addr, sizeof(addr))) {
         close_socket(sock);
         fprintf(stderr, "Failed binding socket.\n");
         return EXIT_FAILURE;
     }
-
+    //最大的连接数量为5
     if (listen(sock, 5)) {
         close_socket(sock);
         fprintf(stderr, "Error listening on socket.\n");
@@ -80,11 +86,18 @@ int main(int argc, char *argv[]) {
     }
 
     /* finally, loop waiting for input and then write it back */
-
+    //初始化结束
+    /*
+        初始化流程:
+        1 create socket
+        2 bind
+        3 listen
+    */
     while (1) {
         /* listen for new connection */
         cli_size = sizeof(cli_addr);
         fprintf(stdout,"Waiting for connection...\n");
+        //阻塞直到收到连接
         client_sock = accept(sock, (struct sockaddr *) &cli_addr, &cli_size);
         if (client_sock == -1)
         {
@@ -92,14 +105,20 @@ int main(int argc, char *argv[]) {
             close_socket(sock);
             return EXIT_FAILURE;
         }
+        //打印客户端的ip port
         fprintf(stdout,"New connection from %s:%d\n",inet_ntoa(cli_addr.sin_addr),ntohs(cli_addr.sin_port));
         while(1){
              /* receive msg from client, and concatenate msg with "(echo back)" to send back */
             memset(buf, 0, BUF_SIZE);
+            //读取客户端传入的数据，写入buf中
             int readret = recv(client_sock, buf, BUF_SIZE, 0);
             if (readret <0)break;
             fprintf(stdout,"Received (total %d bytes):%s \n",readret,buf); 
-            strcat(buf,"(echo back)");
+            // 移除 buf 中的换行符
+            size_t len = strcspn(buf, "\n");
+            buf[len] = '\0';
+            strcat(buf,"(echo back)\n");
+            //向客户端echo
             if(send(client_sock, buf, strlen(buf), 0) < 0)break;
             fprintf(stdout,"Send back\n");
             /* when client is closing the connection：
@@ -109,14 +128,17 @@ int main(int argc, char *argv[]) {
                 Then server finishes closing the connection, recv() and send() return -1 */
         }
         /* client closes the connection. server free resources and listen again */
+        //关闭client套接子，成功返回0 失败返回1
         if (close_socket(client_sock))
         {
             close_socket(sock);
             fprintf(stderr, "Error closing client socket.\n");
             return EXIT_FAILURE;
         }
+        //防止内存泄漏
         fprintf(stdout,"Closed connection from %s:%d\n",inet_ntoa(cli_addr.sin_addr),ntohs(cli_addr.sin_port));
     }
+    //正常关闭socket
     close_socket(sock);
     return EXIT_SUCCESS;
 }

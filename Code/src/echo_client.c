@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
     }
 
     char buf[BUF_SIZE];
-        
+    
     int status, sock;
     struct addrinfo hints;
 	memset(&hints, 0, sizeof(struct addrinfo));
@@ -41,18 +41,20 @@ int main(int argc, char* argv[])
     hints.ai_socktype = SOCK_STREAM; //TCP stream sockets
     hints.ai_flags = AI_PASSIVE; //fill in my IP for me
 
+    //根据提供的服务器 IP 地址和端口号，解析出一个或多个地址信息，并将结果存储在 servinfo 指向的链表中
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) 
     {
         fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
         return EXIT_FAILURE;
     }
-
+    //创建套接子
     if((sock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1)
     {
         fprintf(stderr, "Socket failed");
         return EXIT_FAILURE;
     }
-    
+    //servinfo->ai_addr服务器地址
+    //sock 客户端套接子
     if (connect (sock, servinfo->ai_addr, servinfo->ai_addrlen) == -1)
     {
         fprintf(stderr, "Connect");
