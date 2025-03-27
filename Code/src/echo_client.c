@@ -19,15 +19,17 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #define ECHO_PORT 9999
 #define BUF_SIZE 4096
 
 int main(int argc, char* argv[])
 {
-    if (argc != 3)
+    if (argc != 4)
     {
-        fprintf(stderr, "usage: %s <server-ip> <port>",argv[0]);
+        fprintf(stderr, "usage: %s <server-ip> <port> <file>",argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -62,8 +64,14 @@ int main(int argc, char* argv[])
     }
         
     char msg[BUF_SIZE]; 
-    fgets(msg, BUF_SIZE, stdin);
-    
+    memset(msg, 0, BUF_SIZE);
+    const int fd_in = open(argv[3], O_RDONLY);
+    if(fd_in < 0){
+        printf("Failed to open the file\n");
+        return 0;
+    }
+    const int readRet = (int) read(fd_in, msg, BUF_SIZE);
+
     int bytes_received;
     fprintf(stdout, "Sending %s", msg);
     send(sock, msg , strlen(msg), 0);

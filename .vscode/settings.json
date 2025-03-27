@@ -1,0 +1,21 @@
+{
+    "files.associations": {
+        "string.h": "c",
+        "netdb.h": "c",
+        "in.h": "c",
+        "signal.h": "c",
+        "inet.h": "c",
+        "stdio.h": "c",
+        "parse.h": "c",
+        "unistd.h": "c",
+        "y.tab.h": "c",
+        "errno.h": "c",
+        "types.h": "c",
+        "stdlib.h": "c",
+        "socket.h": "c",
+        "stat.h": "c",
+        "ip.h": "c",
+        "fcntl.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "enabled"
+}

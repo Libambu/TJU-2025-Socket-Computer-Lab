@@ -6,6 +6,8 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <string.h>
+#include "parse.h"
+
 #define ECHO_PORT 9999
 #define BUF_SIZE 4096
 
@@ -44,18 +46,23 @@ void handle_sigpipe(const int sig)
     path 请求路径
     http_version
 */
-int parse_http_request(const char *request,char *method, char *path, char *http_version){
-    const char *end_of_line = strchr(request,'\n');
-    if(end_of_line == NULL){
-        return 0;
+int parse_http_request(const char *buf,char *method, char *path, char *http_version){
+
+    printf("buf:%s\n",buf);
+    printf("strlen(buf):%d\n",strlen(buf));
+
+    Request *request = parse(buf, strlen(buf), -1);
+
+    fprintf(stdout,"Received (total %d bytes):%s \n",strlen(buf),buf);
+
+    if (request == NULL) {
+        return 0;//不合规范
     }
-    char first_line[BUF_SIZE];
-    strncpy(first_line,request,end_of_line-request);
-    first_line[end_of_line-request] = '\0';
-    //开始解析
-    if(sscanf(first_line,"%s %s %s",method,path,http_version)!=3){
-        return 0;//不符合规范方法
-    }
+
+    method = request->http_method;
+    path = request->http_uri;
+    http_version = request->http_version;
+
     //strcmp相等返回0
     if(strcmp(method,"GET")!=0&&strcmp(method,"POST")!=0&&strcmp(method,"HEAD")!=0){
         return -1;//未实现方法
@@ -78,7 +85,7 @@ int main(int argc, char *argv[]) {
     socklen_t cli_size;//存储客户端地址结构的大小
     struct sockaddr_in addr, cli_addr;//ipv4地址网络
     fprintf(stdout, "----- Echo Server -----\n");
-
+    
     /* all networked programs must create a socket */
     //创建ipv4协议 TCP协议的连接
     if ((sock = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
@@ -144,9 +151,10 @@ int main(int argc, char *argv[]) {
             char method[10],path[100],http_version[20];
             int parse_result = parse_http_request(buf,method,path,http_version);
             if(parse_result==1){
-                if(send(client_sock,buf,strlen(buf),0)<0){
-                    break;
-                }
+                // if(send(client_sock,buf,strlen(buf),0)<0){
+                //     break;
+                // }
+                send(client_sock, buf, strlen(buf), 0);
                 fprintf(stdout,"Send back\n");
             }else if(parse_result==-1){
                 char *response = "HTTP/1.1 501 Not Implemented\r\n\r\n";

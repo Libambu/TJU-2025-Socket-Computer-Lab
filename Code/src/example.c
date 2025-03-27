@@ -20,11 +20,14 @@ int main(int argc, char **argv) {
         printf("Failed to open the file\n");
         return 0;
     }
+    
     const int readRet = (int) read(fd_in, buf, BUFSIZ);
-
+    //打印buf
+    printf("Buffer: %s\n", buf);
+    printf("Read Ret: %d\n", readRet);
     //Parse the buffer to the parse function. You will need to pass the socket fd and the buffer would need to
     //be read from that fd
-    Request *request = parse(buf, readRet, fd_in);
+    Request *request = parse(buf, readRet, -1);
     if (request == NULL) {
         return 0;
     }
